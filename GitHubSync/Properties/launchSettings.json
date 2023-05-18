@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "GitHubSync": {
+      "commandName": "Project",
+      "commandLineArgs": "--path=\"C:\\Code\" --org=\"kevmoens54229\" --user=\"kevmoens54229\" --cred=\"https://github.com/kevmoens54229\""
+    }
+  }
+}
