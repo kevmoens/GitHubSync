@@ -9,12 +9,12 @@ using System.Threading.Tasks;
 
 namespace GitHubSync
 {
-    public class GitRepoUploader
+    public class GitRepoUploader : IGitRepoUploader
     {
-        private SyncSettings _settings;
-        private readonly GitHubRepositoryManager _gitHubRepository;
+        private readonly SyncSettings _settings;
+        private readonly IGitHubRepositoryManager _gitHubRepository;
         private Remote _remote;
-        public GitRepoUploader(SyncSettings syncSettings, GitHubRepositoryManager gitHubRepository)
+        public GitRepoUploader(SyncSettings syncSettings, IGitHubRepositoryManager gitHubRepository)
         {
             _settings = syncSettings;
             _gitHubRepository = gitHubRepository;
@@ -69,9 +69,9 @@ namespace GitHubSync
             {
                 //Allow Force Push using + on the RefSpec
                 string pushRefSpec = string.Format("+{0}:{0}", branch.CanonicalName.Replace("refs/remotes/github/", "refs/heads/"));
-                Console.WriteLine($"{DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.fff")} Pushing {Repo.Info.Path}  {branch.FriendlyName}");
+                Console.WriteLine($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushing {Repo.Info.Path}  {branch.FriendlyName}");
                 Repo.Network.Push(_remote, pushRefSpec, pushOptions);
-                Console.WriteLine($"{DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.fff")} Pushed {Repo.Info.Path}  {branch.FriendlyName}");
+                Console.WriteLine($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushed {Repo.Info.Path}  {branch.FriendlyName}");
             }
         }
 

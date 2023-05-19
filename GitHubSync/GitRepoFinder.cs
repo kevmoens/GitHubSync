@@ -3,16 +3,17 @@ using LibGit2Sharp.Handlers;
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Threading.Tasks;
 
 namespace GitHubSync
 {
-    public class GitRepoFinder
+    public class GitRepoFinder : IGitRepoFinder
     {
         private readonly SyncSettings _settings;
-        private readonly GitHubRepositoryManager _gitHubRepository;
-        private readonly GitRepoUploader _gitRepoUploader;
-        public GitRepoFinder(SyncSettings settings, GitHubRepositoryManager gitHubRepository, GitRepoUploader gitRepoUploader)
+        private readonly IGitHubRepositoryManager _gitHubRepository;
+        private readonly IGitRepoUploader _gitRepoUploader;
+        public GitRepoFinder(SyncSettings settings, IGitHubRepositoryManager gitHubRepository, IGitRepoUploader gitRepoUploader)
         {
             _settings = settings;
             _gitHubRepository = gitHubRepository;
@@ -23,26 +24,28 @@ namespace GitHubSync
             try
             {
                 _gitHubRepository.LoadGitHubCredentials();
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error Loading GitHub Credentials {ex.Message} {ex.StackTrace}");
                 Environment.ExitCode = -1;
                 return;
             }
+
             var baseDir = new DirectoryInfo(_settings.Path);
-            if (baseDir.Exists == false)
-            {
-                Console.Error.WriteLine($"Error Loading Path {_settings.Path}");
-                Environment.ExitCode = -1;
-                return;
-            }
-            foreach (var subDir in baseDir.GetDirectories())
+            await ProcessSubDirectories(baseDir);
+        }
+
+        private async Task ProcessSubDirectories(DirectoryInfo dir)
+        {
+            foreach (var subDir in dir.GetDirectories())
             {
                 try
                 {
                     var repoPath = Repository.Discover(subDir.FullName);
                     if (string.IsNullOrEmpty(repoPath))
                     {
+                        await ProcessSubDirectories(subDir);
                         continue;
                     }
                     Console.WriteLine($"Starting {repoPath}");
@@ -53,7 +56,7 @@ namespace GitHubSync
                     Console.Error.WriteLine($"Error {subDir.FullName} {ex.Message} {ex.StackTrace}");
                     Environment.ExitCode = -1;
                 }
-            }            
+            }
         }
 
         private  async Task UploadRepoToGitHub(string repoPath)
@@ -73,18 +76,15 @@ namespace GitHubSync
         }
 
         private DirectoryInfo GetRepositoryPath(Repository localRepo)
-        {
-            DirectoryInfo dir = null;
+        {            
             if (localRepo.Info.IsBare)
             {
-                dir = new DirectoryInfo(localRepo.Info.Path);
+                return new DirectoryInfo(localRepo.Info.Path);
             }
             else
             {
-                dir = new DirectoryInfo(localRepo.Info.WorkingDirectory);
+                return new DirectoryInfo(localRepo.Info.WorkingDirectory);
             }
-
-            return dir;
         }
     }
 }

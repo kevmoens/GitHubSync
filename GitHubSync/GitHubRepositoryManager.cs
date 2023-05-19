@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace GitHubSync
 {
-    public class GitHubRepositoryManager
+    public class GitHubRepositoryManager : IGitHubRepositoryManager
     {
         private readonly SyncSettings _settings;
         private readonly GitHubClient _client;

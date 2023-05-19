@@ -2,6 +2,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime;
 
 namespace GitHubSync
 {
@@ -22,21 +24,12 @@ namespace GitHubSync
         /// <param name="args"></param>
         static void Main(string[] args)
         {
-            if (args.Length == 1)
+            if (AskedForHelp(args))
             {
-                switch (args[0])
-                {
-                    case "-h":
-                    case "--h":
-                    case "-?":
-                    case "--?":
-                        ShowHelp();
-                        return;
-                }
+                return;
             }
 
             IConfigurationRoot config = LoadParameters(args);
-            var help = config.GetSection("help");
             var settings = new SyncSettings()
             {
                 Path = config["path"],
@@ -86,8 +79,28 @@ namespace GitHubSync
                 ShowHelp();
                 throw new ArgumentNullException(nameof(settings.Organization));
             }
+            var baseDir = new DirectoryInfo(settings.Path);
+            if (baseDir.Exists == false)
+            {
+                throw new DirectoryNotFoundException($"Error Loading Path {settings.Path}");                
+            }
         }
-
+        private static bool AskedForHelp(string[] args)
+        {
+            if (args.Length == 1)
+            {
+                switch (args[0])
+                {
+                    case "-h":
+                    case "--h":
+                    case "-?":
+                    case "--?":
+                        ShowHelp();
+                        return true;
+                }
+            }
+            return false;
+        }
         private static void ShowHelp()
         {
             Console.WriteLine("**GitHubSync Help**");
@@ -105,9 +118,9 @@ namespace GitHubSync
         private static void RegisterServices(SyncSettings settings, ServiceCollection services)
         {
             services.AddSingleton(settings);
-            services.AddTransient<GitRepoFinder>();
-            services.AddSingleton<GitHubRepositoryManager>();
-            services.AddTransient<GitRepoUploader>();
+            services.AddTransient<IGitRepoFinder, GitRepoFinder>();
+            services.AddSingleton<IGitHubRepositoryManager, GitHubRepositoryManager>();
+            services.AddTransient<IGitRepoUploader, GitRepoUploader>();
         }
     }
 }
