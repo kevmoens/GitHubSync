@@ -12,3 +12,7 @@ https://support.microsoft.com/en-us/windows/accessing-credential-manager-1b5c916
 --org = GitHub Organization (Place holding repos)
 --user = GitHub User (Cross reference to github user for permissions)
 --cred = [Optional] - Name of Windows Credential Manager Setting to get the GitHub token Default is https://github.com
+
+
+Used to create new repositories in GitHub and push the repos up.
+Also can be used to keep local repositories as master and GitHub as a backup.
