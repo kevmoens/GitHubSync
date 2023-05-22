@@ -1,9 +1,7 @@
 ﻿using LibGit2Sharp;
-using LibGit2Sharp.Handlers;
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime;
 using System.Threading.Tasks;
 
 namespace GitHubSync
@@ -11,29 +9,19 @@ namespace GitHubSync
     public class GitRepoFinder : IGitRepoFinder
     {
         private readonly SyncSettings _settings;
-        private readonly IGitHubRepositoryManager _gitHubRepository;
-        private readonly IGitRepoUploader _gitRepoUploader;
-        public GitRepoFinder(SyncSettings settings, IGitHubRepositoryManager gitHubRepository, IGitRepoUploader gitRepoUploader)
+        private List<string> _repos = new List<string>();
+        public GitRepoFinder(SyncSettings settings)
         {
             _settings = settings;
-            _gitHubRepository = gitHubRepository;
-            _gitRepoUploader = gitRepoUploader;
         }
-        public async Task Upload()
+        public async Task<List<string>> GetRepositories()
         {
-            try
-            {
-                _gitHubRepository.LoadGitHubCredentials();
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Error Loading GitHub Credentials {ex.Message} {ex.StackTrace}");
-                Environment.ExitCode = -1;
-                return;
-            }
+            _repos = new List<string>();
 
             var baseDir = new DirectoryInfo(_settings.Path);
             await ProcessSubDirectories(baseDir);
+
+            return _repos;
         }
 
         private async Task ProcessSubDirectories(DirectoryInfo dir)
@@ -48,42 +36,13 @@ namespace GitHubSync
                         await ProcessSubDirectories(subDir);
                         continue;
                     }
-                    Console.WriteLine($"Starting {repoPath}");
-                    await UploadRepoToGitHub(repoPath);
+                    _repos.Add(repoPath);
                 }
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"Error {subDir.FullName} {ex.Message} {ex.StackTrace}");
                     Environment.ExitCode = -1;
                 }
-            }
-        }
-
-        private  async Task UploadRepoToGitHub(string repoPath)
-        {
-
-            using (var localRepo = new Repository(repoPath))
-            {
-                DirectoryInfo dir = GetRepositoryPath(localRepo);
-                string remoteUrl = $"https://github.com/{_settings.Organization}/{dir.Name}.git";
-                Console.WriteLine($"Remote URL {remoteUrl}");
-                await _gitHubRepository.FindOrCreateGitHubRepo(dir);
-                _gitRepoUploader.Repo = localRepo;
-                _gitRepoUploader.AddOrUpdateRemote(remoteUrl);
-                _gitRepoUploader.UpdateOrCreateRemoteTrackingReference();
-                _gitRepoUploader.PushTrackedBranchesToRemote();
-            }
-        }
-
-        private DirectoryInfo GetRepositoryPath(Repository localRepo)
-        {            
-            if (localRepo.Info.IsBare)
-            {
-                return new DirectoryInfo(localRepo.Info.Path);
-            }
-            else
-            {
-                return new DirectoryInfo(localRepo.Info.WorkingDirectory);
             }
         }
     }

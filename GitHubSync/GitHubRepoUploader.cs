@@ -1,27 +1,54 @@
 ﻿using LibGit2Sharp.Handlers;
 using LibGit2Sharp;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace GitHubSync
 {
-    public class GitRepoUploader : IGitRepoUploader
+    public class GitHubRepoUploader : IGitHubRepoUploader
     {
         private readonly SyncSettings _settings;
         private readonly IGitHubRepositoryManager _gitHubRepository;
         private Remote _remote;
-        public GitRepoUploader(SyncSettings syncSettings, IGitHubRepositoryManager gitHubRepository)
+        public GitHubRepoUploader(SyncSettings syncSettings, IGitHubRepositoryManager gitHubRepository)
         {
             _settings = syncSettings;
             _gitHubRepository = gitHubRepository;
         }
-        public Repository Repo { get; set; }
+        private Repository Repo;
 
-        public void AddOrUpdateRemote(string remoteUrl)
+        public async Task UploadRepoToGitHub(string repoPath)
+        {
+
+            using (var localRepo = new Repository(repoPath))
+            {
+                DirectoryInfo dir = GetRepositoryPath(localRepo);
+                string remoteUrl = $"https://github.com/{_settings.Organization}/{dir.Name}.git";
+                Console.WriteLine($"Remote URL {remoteUrl}");
+                await _gitHubRepository.FindOrCreateGitHubRepo(dir);
+                Repo = localRepo;
+                AddOrUpdateRemote(remoteUrl);
+                UpdateOrCreateRemoteTrackingReference();
+                PushTrackedBranchesToRemote();
+            }
+        }
+
+        private DirectoryInfo GetRepositoryPath(Repository localRepo)
+        {
+            if (localRepo.Info.IsBare)
+            {
+                return new DirectoryInfo(localRepo.Info.Path);
+            }
+            else
+            {
+                return new DirectoryInfo(localRepo.Info.WorkingDirectory);
+            }
+        }
+
+
+        private void AddOrUpdateRemote(string remoteUrl)
         {
             _remote = GetRemoteByName(Repo.Network, remoteUrl);
 
@@ -53,7 +80,7 @@ namespace GitHubSync
             return null;
         }
 
-        public void PushTrackedBranchesToRemote()
+        private void PushTrackedBranchesToRemote()
         {
             var pushOptions = new PushOptions
             {
@@ -75,7 +102,7 @@ namespace GitHubSync
             }
         }
 
-        public void UpdateOrCreateRemoteTrackingReference()
+        private void UpdateOrCreateRemoteTrackingReference()
         {
             foreach (var branch in Repo.Branches.Where(b => !b.IsRemote))
             {
