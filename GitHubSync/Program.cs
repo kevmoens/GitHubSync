@@ -31,6 +31,7 @@ namespace GitHubSync
             var settings = new SyncSettings();
             services.AddSingleton(settings);
             services.AddTransient<IDisplayHelp, DisplayHelp>();
+            services.AddTransient<IInputParameterProcessing, InputParameterProcessing>();
             services.AddTransient<IGitRepoFinder, GitRepoFinder>();
             services.AddSingleton<IGitHubRepositoryManager, GitHubRepositoryManager>();
             services.AddTransient<IGitHubRepoUploader, GitHubRepoUploader>();
@@ -38,12 +39,13 @@ namespace GitHubSync
 
         private static void StartGitHubSync(string[] args, ServiceProvider serviceProvider)
         {
-            var gitHubRepositoryManager = serviceProvider.GetRequiredService<IGitHubRepositoryManager>();
-            gitHubRepositoryManager.LoadGitHubCredentials();
 
             var inputProcessing = serviceProvider.GetRequiredService<IInputParameterProcessing>();
             inputProcessing.InputArgs = args;
             inputProcessing.Process();
+
+            var gitHubRepositoryManager = serviceProvider.GetRequiredService<IGitHubRepositoryManager>();
+            gitHubRepositoryManager.LoadGitHubCredentials();
 
             var gitFinder = serviceProvider.GetRequiredService<GitRepoFinder>();
             var repos = gitFinder.GetRepositories().GetAwaiter().GetResult();

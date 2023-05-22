@@ -37,6 +37,12 @@ namespace GitHubSync
 
         private bool AskedForHelp()
         {
+            if (InputArgs.Length == 0) 
+            {
+                _displayHelp.ShowHelp();
+                return true;
+            }
+
             if (InputArgs.Length == 1)
             {
                 switch (InputArgs[0])
