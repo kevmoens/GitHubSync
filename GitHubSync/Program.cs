@@ -47,7 +47,7 @@ namespace GitHubSync
             var gitHubRepositoryManager = serviceProvider.GetRequiredService<IGitHubRepositoryManager>();
             gitHubRepositoryManager.LoadGitHubCredentials();
 
-            var gitFinder = serviceProvider.GetRequiredService<GitRepoFinder>();
+            var gitFinder = serviceProvider.GetRequiredService<IGitRepoFinder>();
             var repos = gitFinder.GetRepositories().GetAwaiter().GetResult();
 
             foreach (var repo in repos)
