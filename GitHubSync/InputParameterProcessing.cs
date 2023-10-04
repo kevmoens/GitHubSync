@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,10 +12,13 @@ namespace GitHubSync
 
         private readonly IDisplayHelp _displayHelp;
         private readonly SyncSettings _syncSettings;
-        public InputParameterProcessing(IDisplayHelp displayHelp, SyncSettings syncSettings)
+        private readonly ILogger<InputParameterProcessing> _logger;
+
+        public InputParameterProcessing(IDisplayHelp displayHelp, SyncSettings syncSettings, ILogger<InputParameterProcessing> logger)
         {
             _displayHelp = displayHelp;
             _syncSettings = syncSettings;
+            _logger = logger;
         }
 
         public void Process()
@@ -40,6 +44,7 @@ namespace GitHubSync
             if (InputArgs.Length == 0) 
             {
                 _displayHelp.ShowHelp();
+                _logger.LogWarning("No parameters passed in.");
                 return true;
             }
 
@@ -78,21 +83,25 @@ namespace GitHubSync
             if (string.IsNullOrEmpty(_syncSettings.Path))
             {
                 _displayHelp.ShowHelp();
+                _logger.LogWarning("Path is missing");
                 throw new ArgumentNullException(nameof(_syncSettings.Path));
             }
             if (string.IsNullOrEmpty(_syncSettings.User))
             {
                 _displayHelp.ShowHelp();
+                _logger.LogWarning("User is missing");
                 throw new ArgumentNullException(nameof(_syncSettings.User));
             }
             if (string.IsNullOrEmpty(_syncSettings.Organization))
             {
                 _displayHelp.ShowHelp();
+                _logger.LogWarning("Organization is missing");
                 throw new ArgumentNullException(nameof(_syncSettings.Organization));
             }
             var baseDir = new DirectoryInfo(_syncSettings.Path);
             if (baseDir.Exists == false)
             {
+                _logger.LogWarning("Path doesn't exist");
                 throw new DirectoryNotFoundException($"Error Loading Path {_syncSettings.Path}");
             }
         }

@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace GitHubSync
 {
@@ -11,11 +12,13 @@ namespace GitHubSync
     {
         private readonly SyncSettings _settings;
         private readonly IGitHubRepositoryManager _gitHubRepository;
+        private readonly ILogger<GitHubRepoUploader> _logger;
         private Remote _remote;
-        public GitHubRepoUploader(SyncSettings syncSettings, IGitHubRepositoryManager gitHubRepository)
+        public GitHubRepoUploader(SyncSettings syncSettings, IGitHubRepositoryManager gitHubRepository, ILogger<GitHubRepoUploader> logger)
         {
             _settings = syncSettings;
             _gitHubRepository = gitHubRepository;
+            _logger = logger;
         }
         private Repository Repo;
 
@@ -27,6 +30,7 @@ namespace GitHubSync
                 DirectoryInfo dir = GetRepositoryPath(localRepo);
                 string remoteUrl = $"https://github.com/{_settings.Organization}/{dir.Name}.git";
                 Console.WriteLine($"Remote URL {remoteUrl}");
+                _logger.LogInformation($"Remote URL {remoteUrl}");
                 await _gitHubRepository.FindOrCreateGitHubRepo(dir);
                 Repo = localRepo;
                 AddOrUpdateRemote(remoteUrl);
@@ -39,10 +43,12 @@ namespace GitHubSync
         {
             if (localRepo.Info.IsBare)
             {
+                _logger.LogTrace($"{localRepo.Info.Path} is a Bare repo");
                 return new DirectoryInfo(localRepo.Info.Path);
             }
             else
             {
+                _logger.LogTrace($"{localRepo.Info.Path} is a Personal repo");
                 return new DirectoryInfo(localRepo.Info.WorkingDirectory);
             }
         }
@@ -60,9 +66,11 @@ namespace GitHubSync
             if (Repo.Network.Remotes.Any(r => r.Name == "github"))
             {
                 Console.WriteLine($"Bad GitHub Remote existed in {Repo.Info.Path}");
+                _logger.LogWarning($"Bad GitHub Remote existed in {Repo.Info.Path}");
                 Repo.Network.Remotes.Remove("github");
             }
             Console.WriteLine($"Added GitHub Remote in {Repo.Info.Path}");
+            _logger.LogInformation($"Added GitHub Remote in {Repo.Info.Path}");
             _remote = Repo.Network.Remotes.Add("github", remoteUrl);
 
         }
@@ -96,8 +104,10 @@ namespace GitHubSync
             {
                 //Allow Force Push using + on the RefSpec
                 string pushRefSpec = string.Format("+{0}:{0}", branch.CanonicalName.Replace("refs/remotes/github/", "refs/heads/"));
+                _logger.LogInformation($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushing {Repo.Info.Path}  {branch.FriendlyName}");
                 Console.WriteLine($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushing {Repo.Info.Path}  {branch.FriendlyName}");
                 Repo.Network.Push(_remote, pushRefSpec, pushOptions);
+                _logger.LogInformation($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushed {Repo.Info.Path}  {branch.FriendlyName}");
                 Console.WriteLine($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushed {Repo.Info.Path}  {branch.FriendlyName}");
             }
         }

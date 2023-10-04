@@ -1,9 +1,16 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NLog.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 
 namespace GitHubSync
 {
     internal class Program
     {
+        private static ILogger<Program> _logger;
+
         /// <summary>
         /// 
         /// Use Windows Credential Manager to read in the https://github.com credentials
@@ -23,6 +30,8 @@ namespace GitHubSync
             RegisterServices(services);
             var serviceProvider = services.BuildServiceProvider();
 
+            _logger = serviceProvider.GetService<ILogger<Program>>();
+
             StartGitHubSync(args, serviceProvider);
         }
 
@@ -35,25 +44,57 @@ namespace GitHubSync
             services.AddTransient<IGitRepoFinder, GitRepoFinder>();
             services.AddSingleton<IGitHubRepositoryManager, GitHubRepositoryManager>();
             services.AddTransient<IGitHubRepoUploader, GitHubRepoUploader>();
+
+            services.AddLogging(builder => {
+                builder.SetMinimumLevel(LogLevel.Trace);                
+                builder.AddNLog();
+            });
         }
 
         private static void StartGitHubSync(string[] args, ServiceProvider serviceProvider)
         {
+            try
+            {
+                var inputProcessing = serviceProvider.GetRequiredService<IInputParameterProcessing>();
+                inputProcessing.InputArgs = args;
+                inputProcessing.Process();
+            } catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing input parameters");
+                return;
+            }
 
-            var inputProcessing = serviceProvider.GetRequiredService<IInputParameterProcessing>();
-            inputProcessing.InputArgs = args;
-            inputProcessing.Process();
+            try
+            {
+                var gitHubRepositoryManager = serviceProvider.GetRequiredService<IGitHubRepositoryManager>();
+                gitHubRepositoryManager.LoadGitHubCredentials();
+            } catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading GitHub Credentials");
+                return;
+            }
 
-            var gitHubRepositoryManager = serviceProvider.GetRequiredService<IGitHubRepositoryManager>();
-            gitHubRepositoryManager.LoadGitHubCredentials();
-
-            var gitFinder = serviceProvider.GetRequiredService<IGitRepoFinder>();
-            var repos = gitFinder.GetRepositories().GetAwaiter().GetResult();
+            List<string> repos = new List<string>();
+            try
+            {
+                IGitRepoFinder gitFinder = serviceProvider.GetRequiredService<IGitRepoFinder>();
+                repos = gitFinder.GetRepositories().GetAwaiter().GetResult();
+            } catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error finding git repositories");
+                return;
+            }
 
             foreach (var repo in repos)
             {
-                var uploader = serviceProvider.GetRequiredService<IGitHubRepoUploader>();
-                uploader.UploadRepoToGitHub(repo).GetAwaiter().GetResult();
+                try
+                {
+                    var uploader = serviceProvider.GetRequiredService<IGitHubRepoUploader>();
+                    uploader.UploadRepoToGitHub(repo).GetAwaiter().GetResult();
+                } catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error uploading {repo}");
+                }
             }
         }
     }
