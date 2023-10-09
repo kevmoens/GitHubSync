@@ -47,7 +47,7 @@ namespace GitHubSync
                     Private = true
                 };
 
-                await _client.Repository.Create(newRepo);
+                await _client.Repository.Create(_settings.Organization, newRepo);
             }
         }
 

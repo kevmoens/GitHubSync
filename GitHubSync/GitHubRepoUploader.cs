@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace GitHubSync
 {
@@ -36,6 +37,7 @@ namespace GitHubSync
                 AddOrUpdateRemote(remoteUrl);
                 UpdateOrCreateRemoteTrackingReference();
                 PushTrackedBranchesToRemote();
+                PushTagsToRemote();
             }
         }
 
@@ -109,6 +111,31 @@ namespace GitHubSync
                 Repo.Network.Push(_remote, pushRefSpec, pushOptions);
                 _logger.LogInformation($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushed {Repo.Info.Path}  {branch.FriendlyName}");
                 Console.WriteLine($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushed {Repo.Info.Path}  {branch.FriendlyName}");
+            }
+        }
+        private void PushTagsToRemote()
+        {
+            try
+            {
+                _logger.LogInformation($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushing {Repo.Info.Path} TAGS");
+                var pushOptions = new PushOptions
+                {
+                    CredentialsProvider = new CredentialsHandler(
+                    (url, usernameFromUrl, types) =>
+                        new UsernamePasswordCredentials()
+                        {
+                            Username = _settings.User,
+                            Password = _gitHubRepository.Password
+                        })
+                };
+                foreach (var tag in Repo.Tags)
+                {
+                    Repo.Network.Push(Repo.Network.Remotes["github"], tag.CanonicalName, pushOptions);
+                }
+                _logger.LogInformation($"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} Pushed {Repo.Info.Path} TAGS");
+            } catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error Pushing {Repo.Info.Path} TAGS");
             }
         }
 
